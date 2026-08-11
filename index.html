@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Work Directory</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0e17;
+    --blue:#3b82f6;
+    --blue-dim:#1e4fa3;
+    --glass:rgba(255,255,255,0.06);
+    --glass-border:rgba(255,255,255,0.14);
+    --text:#eef1f6;
+    --text-dim:#9aa4b6;
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+
+  html,body{
+    height:100%;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter', sans-serif;
+    overflow-x:hidden;
+  }
+
+  /* ---------- Liquid background ---------- */
+  .liquid-bg{
+    position:fixed; inset:-8%; z-index:0; overflow:hidden; pointer-events:none;
+    background:
+      linear-gradient(rgba(3,7,18,.48), rgba(3,7,18,.48)),
+      url("https://images.unsplash.com/photo-1701414244569-fcaaaa163860?fm=jpg&q=60&w=3000&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA==") center / 135% 135% no-repeat;
+    animation: moveBackground 42s ease-in-out infinite alternate;
+    will-change:background-position;
+  }
+@keyframes moveBackground {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 50% 42%; }
+    100% { background-position: 100% 58%; }
+  }
+
+  /* Fine detail is now supplied by the artwork itself, so the old grid
+     and blue blobs are intentionally removed. This lets the gold lines
+     remain visible through the glass and gives the refraction something
+     meaningful to bend. */
+  .texture{ display:none; }
+  .aurora{ display:none; }
+
+  .grain{
+    position:fixed; inset:0; z-index:1; pointer-events:none; opacity:0.035;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ---------- Layout ---------- */
+  .wrap{ position:relative; z-index:2; max-width:1180px; margin:0 auto; padding:56px 28px 90px; }
+
+  header{ display:flex; flex-direction:column; gap:22px; margin-bottom:44px; }
+
+  .eyebrow{
+    font-family:'Space Grotesk', sans-serif; font-size:12px; letter-spacing:0.18em;
+    text-transform:uppercase; color:var(--text-dim);
+  }
+
+  h1{
+    font-family:'Space Grotesk', sans-serif; font-weight:700;
+    font-size:clamp(32px, 5vw, 52px); letter-spacing:-0.02em; line-height:1.05;
+    background:linear-gradient(120deg, #fff 40%, var(--blue) 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+
+  .sub{ color:var(--text-dim); font-size:15px; max-width:520px; }
+
+  /* Search / filter bar — a glass pill */
+  .toolbar{
+    display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+    background:var(--glass); border:1px solid var(--glass-border);
+    backdrop-filter:blur(20px) saturate(160%); -webkit-backdrop-filter:blur(20px) saturate(160%);
+    border-radius:18px; padding:10px 14px;
+    box-shadow: inset 2px 2px 0 -2px rgba(255,255,255,0.5), inset 0 0 3px 1px rgba(255,255,255,0.35), 0 8px 30px rgba(0,0,0,0.35);
+  }
+  /* Progressive enhancement: real refraction where the browser supports
+     SVG filters in backdrop-filter (Chromium). Falls back to the plain
+     blur above everywhere else. */
+  @supports (backdrop-filter: url(#liquid-distortion)) {
+    .toolbar{
+      backdrop-filter: url(#liquid-distortion) saturate(160%) brightness(1.05);
+    }
+  }
+
+  #search{
+    flex:1; min-width:160px; background:transparent; border:none; outline:none;
+    color:var(--text); font-family:'Inter'; font-size:14px; padding:8px 10px;
+  }
+  #search::placeholder{ color:var(--text-dim); }
+
+  .chip{
+    position:relative; overflow:hidden;
+    font-family:'Space Grotesk', sans-serif; font-size:12.5px; padding:7px 14px;
+    border-radius:100px; border:1px solid var(--glass-border); background:rgba(255,255,255,0.05);
+    backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+    box-shadow: inset 1px 1px 0 -1px rgba(255,255,255,0.5), inset 0 0 2px 1px rgba(255,255,255,0.25);
+    color:var(--text-dim); cursor:pointer; transition:all .2s ease; white-space:nowrap;
+  }
+  @supports (backdrop-filter: url(#liquid-lens)) {
+    .chip{ backdrop-filter: url(#liquid-lens) saturate(150%) brightness(1.05); }
+  }
+  .chip:hover{ color:var(--text); border-color:rgba(255,255,255,0.3); }
+  .chip.active{ background:var(--blue); color:#0a0e17; border-color:transparent; font-weight:600; }
+
+  /* ---------- Categories & cards ---------- */
+  section.category{ margin-bottom:40px; }
+  .cat-label{
+    font-family:'Space Grotesk', sans-serif; font-size:13px; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--text-dim); margin-bottom:14px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .cat-label::after{ content:""; flex:1; height:1px; background:linear-gradient(90deg, var(--glass-border), transparent); }
+
+  .grid{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:16px;
+  }
+
+  .card{
+    position:relative; overflow:hidden; border-radius:20px;
+    padding:18px 18px 16px; min-height:108px;
+    background:var(--glass); border:1px solid var(--glass-border);
+    backdrop-filter:blur(18px) saturate(160%); -webkit-backdrop-filter:blur(18px) saturate(160%);
+    box-shadow: inset 2px 2px 0 -2px rgba(255,255,255,0.55), inset 0 0 3px 1px rgba(255,255,255,0.3), 0 6px 24px rgba(0,0,0,0.3);
+    text-decoration:none; color:var(--text);
+    display:flex; flex-direction:column; justify-content:space-between; gap:14px;
+    transition:transform .35s cubic-bezier(.2,.8,.2,1), border-color .35s ease, box-shadow .35s ease, backdrop-filter .35s ease;
+  }
+  /* Real glass refraction: bends whatever is behind the card (the aurora)
+     through the SVG displacement map. Own text/content is unaffected since
+     backdrop-filter only distorts what's BEHIND the element, not its children. */
+  @supports (backdrop-filter: url(#liquid-distortion)) {
+    .card{
+      backdrop-filter: url(#liquid-distortion) saturate(150%) brightness(1.05);
+    }
+    .card:hover{ backdrop-filter: url(#liquid-distortion-hover) saturate(165%) brightness(1.1); }
+  }
+  .card::before{
+    /* liquid specular highlight, follows mouse via --mx/--my custom props */
+    content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+    background: radial-gradient(220px circle at var(--mx,50%) var(--my,50%), rgba(255,255,255,0.22), transparent 60%);
+    opacity:0; transition:opacity .3s ease;
+  }
+  .card:hover{
+    transform:translateY(-4px) scale(1.015);
+    border-color:rgba(59,130,246,0.45);
+    box-shadow: inset 2px 2px 0 -2px rgba(255,255,255,0.65), inset 0 0 4px 1px rgba(255,255,255,0.4), 0 16px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(59,130,246,0.12);
+  }
+  .card:hover::before{ opacity:1; }
+
+  .card-top{ display:flex; align-items:center; justify-content:space-between; }
+  .glyph{
+    position:relative; overflow:hidden;
+    width:36px; height:36px; border-radius:11px; display:flex; align-items:center; justify-content:center;
+    font-family:'Space Grotesk'; font-weight:600; font-size:14px;
+    background:rgba(59,130,246,0.14);
+    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    border:1px solid rgba(59,130,246,0.3); color:var(--text);
+    box-shadow: inset 1px 1px 0 -1px rgba(255,255,255,0.55), inset 0 0 3px 1px rgba(255,255,255,0.3);
+  }
+  @supports (backdrop-filter: url(#liquid-lens)) {
+    .glyph{ backdrop-filter: url(#liquid-lens) saturate(150%) brightness(1.08); }
+  }
+  .arrow{ opacity:0; transform:translate(-4px,4px); transition:all .3s ease; color:var(--blue); font-size:16px; }
+  .card:hover .arrow{ opacity:1; transform:translate(0,0); }
+
+  .card-name{ font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:15.5px; }
+  .card-desc{ font-size:12.5px; color:var(--text-dim); line-height:1.4; }
+
+  .scope{
+    display:inline-block; margin-top:8px; font-family:'Space Grotesk', sans-serif;
+    font-size:10px; letter-spacing:0.06em; text-transform:uppercase;
+    padding:3px 9px; border-radius:100px; color:var(--blue);
+    background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.28);
+  }
+
+  footer{
+    margin-top:60px; text-align:center; color:var(--text-dim); font-size:12px;
+  }
+  footer code{ color:var(--teal); }
+
+  @media (prefers-reduced-motion: reduce){
+    .blob{ animation:none !important; }
+    .card{ transition:none; }
+  }
+
+  /* ---------- Liquid glass treatment ---------- */
+  body{
+    min-height:100vh;
+    background:#040812;
+  }
+
+  .wrap{
+    width:min(1180px,100%);
+  }
+
+  .toolbar,
+  .card{
+    position:relative;
+    isolation:isolate;
+    overflow:hidden;
+    background:
+      linear-gradient(135deg, rgba(255,255,255,.13), rgba(255,255,255,.035) 42%, rgba(255,255,255,.065)),
+      rgba(255,255,255,.055);
+    border:1px solid rgba(255,255,255,.22);
+    box-shadow:
+      inset 1.5px 1.5px 0 -1px rgba(255,255,255,.72),
+      inset 0 0 0 1px rgba(255,255,255,.08),
+      inset 0 -1px 0 rgba(255,255,255,.08),
+      0 18px 45px rgba(0,0,0,.28);
+  }
+
+  .toolbar::before,
+  .card::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    border-radius:inherit;
+    pointer-events:none;
+    z-index:-1;
+    background:
+      radial-gradient(180px 100px at 15% 0%, rgba(255,255,255,.18), transparent 70%),
+      radial-gradient(220px 140px at 100% 100%, rgba(255,255,255,.07), transparent 70%);
+  }
+
+  .toolbar::after{
+    content:"";
+    position:absolute;
+    inset:1px;
+    border-radius:inherit;
+    pointer-events:none;
+    background:linear-gradient(115deg, rgba(255,255,255,.12), transparent 28%, transparent 72%, rgba(255,255,255,.05));
+    opacity:.75;
+  }
+
+  .card{
+    backdrop-filter:blur(24px) saturate(175%);
+    -webkit-backdrop-filter:blur(24px) saturate(175%);
+    transition:
+      transform .3s cubic-bezier(.2,.8,.2,1),
+      border-color .3s ease,
+      box-shadow .3s ease,
+      background .3s ease;
+  }
+
+  .card::after{
+    background:
+      radial-gradient(240px circle at var(--mx,50%) var(--my,50%), rgba(255,255,255,.18), transparent 58%),
+      linear-gradient(135deg, rgba(255,255,255,.08), transparent 45%);
+    opacity:.7;
+  }
+
+  .card:hover{
+    background:
+      linear-gradient(135deg, rgba(255,255,255,.17), rgba(255,255,255,.055) 45%, rgba(255,255,255,.085)),
+      rgba(255,255,255,.065);
+    border-color:rgba(255,255,255,.38);
+    box-shadow:
+      inset 1.5px 1.5px 0 -1px rgba(255,255,255,.82),
+      inset 0 0 0 1px rgba(255,255,255,.10),
+      0 22px 55px rgba(0,0,0,.42),
+      0 0 28px rgba(59,130,246,.12);
+  }
+
+  .glyph,
+  .chip{
+    background:rgba(255,255,255,.075);
+    border-color:rgba(255,255,255,.22);
+    box-shadow:
+      inset 1px 1px 0 -1px rgba(255,255,255,.72),
+      inset 0 0 3px 1px rgba(255,255,255,.16);
+  }
+
+  .chip.active{
+    background:rgba(59,130,246,.72);
+    color:#fff;
+    box-shadow:
+      inset 1px 1px 0 -1px rgba(255,255,255,.65),
+      0 6px 18px rgba(59,130,246,.2);
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .liquid-bg{ transform:none; }
+  }
+
+</style>
+</head>
+<body>
+
+<svg style="position:absolute; width:0; height:0; overflow:hidden;">
+  <defs>
+    <!-- Rest-state glass: gentle procedural ripple. Scales to any element
+         size since it's turbulence-driven rather than a fixed pixel map. -->
+    <filter id="liquid-distortion" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010 0.014" numOctaves="2" seed="7" result="noise"/>
+      <feGaussianBlur in="noise" stdDeviation="2.2" result="softNoise"/>
+      <feDisplacementMap in="SourceGraphic" in2="softNoise" scale="40" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <!-- Hover state: slightly stronger bend, like the surface flexing under a cursor -->
+    <filter id="liquid-distortion-hover" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010 0.014" numOctaves="2" seed="7" result="noise"/>
+      <feGaussianBlur in="noise" stdDeviation="2.2" result="softNoise"/>
+      <feDisplacementMap in="SourceGraphic" in2="softNoise" scale="56" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <!-- Lens glass: for buttons, chips, and glyph badges. Unlike the panel
+         filters above (organic turbulence ripple), this uses a pre-baked
+         bump/lens map — the same technique as the reference plus-button —
+         which produces a true convex "magnifying glass" bulge instead of a
+         ripple. Visually distinct on purpose: buttons should feel like
+         lenses, panels should feel like frosted sheets. -->
+    <filter id="liquid-lens" primitiveUnits="objectBoundingBox" x="-15%" y="-15%" width="130%" height="130%">
+      <feImage href="data:image/png;base64,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" x="0" y="0" width="1" height="1" result="map"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="0.015" result="blur"/>
+      <feDisplacementMap in="blur" in2="map" scale="0.28" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+</svg>
+
+<div class="liquid-bg"></div>
+<div class="grain"></div>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Rainphil · Personal Workspace</div>
+    <h1>Everything you touch<br>in a working day.</h1>
+    <p class="sub">Your core sheets, laid out in the order you actually touch them: prospect, log, quote, fulfill. Edit the <code>LINKS</code> array in the source to swap in your real URLs.</p>
+
+    <div class="toolbar">
+      <input id="search" type="text" placeholder="Search your directory…" oninput="renderAll()">
+      <div id="chips" class="chips" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+    </div>
+  </header>
+
+  <div id="content"></div>
+
+  <footer>Right-click a card to edit its target, or open the file and edit the <code>LINKS</code> array. Host on GitHub Pages for one-tap access.</footer>
+</div>
+
+<script>
+  // ---------------------------------------------------------------
+  // Edit this array to build your own directory. "cat" groups cards
+  // under a category heading. "glyph" is a 1-2 letter mark for the card.
+  // ---------------------------------------------------------------
+  const LINKS = [
+    // 1. Prospect & scope the territory
+    { cat:"1 · Prospecting", name:"Leads & Accounts Repository", desc:"365-account territory database", glyph:"LR", scope:"Personal", url:"https://docs.google.com/spreadsheets/d/1KdpNRMeH63geYH42_6GYrPudNBRNptxXgBMOPPFHTbI/edit?pli=1&gid=0#gid=0" },
+    { cat:"1 · Prospecting", name:"Leads & Accounts Map", desc:"Geo view of the same repository", glyph:"LM", scope:"Personal", url:"https://www.google.com/maps/d/u/0/edit?mid=1CacNLIsIUK6jGsWeUZQRGOJHv23TkJk&ll=14.764684318691307%2C121.29828441800423&z=10" },
+
+    // 2. Log the account / interaction
+    { cat:"2 · CRM & Logging", name:"Personal CRM", desc:"Your own pipeline & account notes", glyph:"PC", scope:"Personal", url:"https://docs.google.com/spreadsheets/d/1kY9v45EWokj9DDDXdgmbSCFvPO4navHuZo27uYVW-oQ/edit?gid=441472654#gid=441472654" },
+    { cat:"2 · CRM & Logging", name:"RP CRM", desc:"Team-wide account & status log", glyph:"RC", scope:"RP wide", url:"https://docs.google.com/spreadsheets/d/1AKnspX8y9bJGvHW8isjxIPZY2zu-IpsOP9QK-D5AaAg/edit?gid=617194476#gid=617194476" },
+
+    // 3. Quote
+    { cat:"3 · Quotation", name:"Quotation Log File", desc:"Master record of quotes issued", glyph:"QL", scope:"RP wide", url:"https://rainphinc-my.sharepoint.com/:x:/r/personal/liezl_rainphil_com/_layouts/15/Doc.aspx?sourcedoc=%7BFDA1E1CD-C511-4B8C-9430-34B1DACA527B%7D&file=Quotation%20Log%20File.xlsx&action=default&mobileredirect=true&wdOrigin=WAC.EXCEL.HOME-BUTTON%2CAPPHOME-WEB.FILEBROWSER.RECENT&wdPreviousSession=bf9c31e2-6be8-3e38-9481-6b53872132e9&wdPreviousSessionSrc=Wac&ct=1786413163480#" },
+{ cat:"3 · Quotation", name:"Quote and Offer Tracker", desc:"Track quotations, offers, and follow-up", glyph:"OT", scope:"RP wide", url:"https://docs.google.com/spreadsheets/d/1Fz0EwXqpdGqQiBebVBnFZjN3WfL5zdzTZecRHnrC-Lg/edit?gid=617194476#gid=617194476" },
+{ cat:"3 · Quotation", name:"RP Quotation Tool", desc:"Auto-generate Word quotations", glyph:"QT", scope:"Personal", url:"https://sebastiancruzrp.github.io/rp-quotation-maker/" },
+
+    // 4. Fulfil the order
+    { cat:"4 · Fulfillment", name:"Inventory Sheet", desc:"Stock on hand before confirming", glyph:"IV", scope:"RP wide", url:"https://docs.google.com/spreadsheets/d/16b35HzoGVbnPNxKMVAhqa9aT2nFPelQNyz3kRYwX2_o/edit?gid=1649022230#gid=1649022230" },
+    { cat:"4 · Fulfillment", name:"OCF Log", desc:"Order confirmation form records", glyph:"OC", scope:"RP wide", url:"https://onedrive.live.com/:x:/g/personal/956657834fc62c28/IQDRHeczisqPR5aymyNbh6l5AbfYryzL7LKBe10dUXKdBo8?rtime=5JoYd0v33kg&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy85NTY2NTc4MzRmYzYyYzI4L0lRRFJIZWN6aXNxUFI1YXlteU5iaDZsNUFiZllyeXpMN0xLQmUxMGRVWEtkQm84P2U9VXJJQXFi" },
+    { cat:"4 · Fulfillment", name:"Sales PO Logger", desc:"For sales team tracking of POs and numbers", glyph:"DL", scope:"RP wide", url:"https://rainphinc-my.sharepoint.com/:x:/r/personal/joseph_rainphil_com/_layouts/15/Doc.aspx?sourcedoc=%7BD348AA97-4C91-413F-94D3-88BA9BC35A72%7D&file=Seb%202026.xlsx&action=default&mobileredirect=true" },
+  ];
+
+  const content = document.getElementById('content');
+  const chipsWrap = document.getElementById('chips');
+  let activeCat = "All";
+
+  const categories = ["All", ...new Set(LINKS.map(l => l.cat))];
+
+  function buildChips(){
+    chipsWrap.innerHTML = "";
+    categories.forEach(cat => {
+      const chip = document.createElement('div');
+      chip.className = 'chip' + (cat === activeCat ? ' active' : '');
+      chip.textContent = cat;
+      chip.onclick = () => { activeCat = cat; buildChips(); renderAll(); };
+      chipsWrap.appendChild(chip);
+    });
+  }
+
+  function renderAll(){
+    const q = document.getElementById('search').value.trim().toLowerCase();
+    content.innerHTML = "";
+
+    const grouped = {};
+    LINKS.forEach(l => {
+      if (activeCat !== "All" && l.cat !== activeCat) return;
+      const matches = !q || l.name.toLowerCase().includes(q) || l.desc.toLowerCase().includes(q) || l.cat.toLowerCase().includes(q);
+      if (!matches) return;
+      grouped[l.cat] = grouped[l.cat] || [];
+      grouped[l.cat].push(l);
+    });
+
+    if (Object.keys(grouped).length === 0){
+      content.innerHTML = '<p style="color:var(--text-dim); padding:40px 0;">Nothing matches that search.</p>';
+      return;
+    }
+
+    Object.entries(grouped).forEach(([cat, items]) => {
+      const section = document.createElement('section');
+      section.className = 'category';
+      section.innerHTML = `<div class="cat-label">${cat}</div>`;
+      const grid = document.createElement('div');
+      grid.className = 'grid';
+      items.forEach(l => {
+        const a = document.createElement('a');
+        a.className = 'card';
+        a.href = l.url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.innerHTML = `
+          <div class="card-top">
+            <div class="glyph">${l.glyph}</div>
+            <div class="arrow">↗</div>
+          </div>
+          <div>
+            <div class="card-name">${l.name}</div>
+            <div class="card-desc">${l.desc}</div>
+            <div class="scope">${l.scope}</div>
+          </div>`;
+        a.addEventListener('mousemove', e => {
+          const r = a.getBoundingClientRect();
+          a.style.setProperty('--mx', ((e.clientX - r.left)/r.width*100) + '%');
+          a.style.setProperty('--my', ((e.clientY - r.top)/r.height*100) + '%');
+        });
+        grid.appendChild(a);
+      });
+      section.appendChild(grid);
+      content.appendChild(section);
+    });
+  }
+
+  buildChips();
+  renderAll();
+</script>
+
+</body>
+</html>
